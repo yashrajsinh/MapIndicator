@@ -17,6 +17,7 @@ type LocationType = {
 };
 function App() {
   const [location, setLocation] = useState<LocationType | null>(null);
+  const [address, setAddress] = useState<string | null>(null);
   //request permission on android
   const requestLocationPermission = async () => {
     if (Platform.OS === 'android') {
@@ -38,9 +39,15 @@ function App() {
     }
 
     Geolocation.getCurrentPosition(
-      position => {
+      async position => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
         console.log(position);
-        setLocation(position.coords);
+        // passign longs and lats
+        setLocation({ latitude: lat, longitude: lng });
+        //calling method to get an address
+        const add = await getAddress(lat, lng);
+        setAddress(add);
       },
       error => {
         console.log(error);
@@ -56,7 +63,34 @@ function App() {
   useEffect(() => {
     getLocation();
   }, []);
+  //get an address
+  const getAddress = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+        {
+          headers: {
+            'User-Agent': 'my-react-native-app',
+          },
+        },
+      );
 
+      const data = await res.json();
+
+      // Clean city name
+      const ad =
+        data.address?.road +
+          ', ' +
+          data.address?.city +
+          ', ' +
+          data.address?.country || 'Unknown location';
+
+      return ad;
+    } catch (err) {
+      console.log(err);
+      return null;
+    }
+  };
   return (
     <View style={styles.container}>
       <MapView
@@ -84,7 +118,7 @@ function App() {
               latitude: location.latitude,
               longitude: location.longitude,
             }}
-            title="You are here"
+            title={address || 'Still trying to catch you!'}
           />
         )}
       </MapView>
